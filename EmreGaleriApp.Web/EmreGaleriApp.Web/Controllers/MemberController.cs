@@ -113,7 +113,9 @@ namespace EmreGaleriApp.Web.Controllers
             {
                 NationalId = user.NationalId,
                 Gender = user.Gender,
-                BirthDate = user.BirthDate,
+                BirthDate = user.BirthDate.HasValue
+    ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+    : null,
                 DrivingExperienceYears = user.DrivingExperienceYears,
                 PictureUrl = user.PictureUrl,
                 LicenseTypes = allLicenseTypes,
@@ -160,7 +162,11 @@ namespace EmreGaleriApp.Web.Controllers
 
             user.NationalId = model.NationalId;
             user.Gender = model.Gender;
-            user.BirthDate = model.BirthDate;
+            user.BirthDate = model.BirthDate.HasValue
+    ? DateOnly.FromDateTime(model.BirthDate.Value)
+    : null;// sadece tarih kısmı
+
+
             user.DrivingExperienceYears = model.DrivingExperienceYears;
 
             // Kullanıcının mevcut ehliyetlerini sil
@@ -178,7 +184,16 @@ namespace EmreGaleriApp.Web.Controllers
             }
 
             var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                ModelState.AddModelError("", "Güncelleme sırasında bir hata oluştu.");
+                // LicenseTypes doldur...
+                return View(model);
+            }
+
             await _context.SaveChangesAsync();
+
 
             if (result.Succeeded)
             {

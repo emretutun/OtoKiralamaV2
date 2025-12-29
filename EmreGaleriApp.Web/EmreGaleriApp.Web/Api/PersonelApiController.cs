@@ -1,14 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using EmreGaleriApp.Repository.Models;
-using EmreGaleriApp.Repository;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
+﻿using EmreGaleriApp.Repository.Models;
+using EmreGaleriApp.Web.ApiDto;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.Linq;
-using EmreGaleriApp.Web.ApiDto;
 
 namespace EmreGaleriApp.Web.Api
 {
@@ -31,19 +31,23 @@ namespace EmreGaleriApp.Web.Api
         public async Task<IActionResult> GetAll()
         {
             var data = await _context.PersonelDetails
-                   .Include(p => p.User)
-                   .Select(p => new
-                   {
-                       p.Id,
-                       p.UserId,
-                       UserName = p.User!.UserName,
-                       Email = p.User.Email,
-                       PhoneNumber = p.User.PhoneNumber,
-                       p.Position,
-                       p.Salary,
-                       p.StartDate
-                   })
-                   .ToListAsync();
+                .Include(p => p.User)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.UserId,
+                    UserName = p.User!.UserName,
+                    Email = p.User!.Email,
+                    PhoneNumber = p.User!.PhoneNumber,
+                    p.Position,
+                    p.Salary,
+
+                    // İstersen string gönder (frontend rahat eder)
+                    StartDate = p.StartDate.ToString("yyyy-MM-dd")
+                    // veya DateTime gönder:
+                    // StartDate = p.StartDate.ToDateTime(TimeOnly.MinValue)
+                })
+                .ToListAsync();
 
             return Ok(data);
         }
@@ -65,7 +69,9 @@ namespace EmreGaleriApp.Web.Api
                 UserName = p.User?.UserName,
                 p.Position,
                 p.Salary,
-                p.StartDate
+                StartDate = p.StartDate.ToString("yyyy-MM-dd")
+                // veya DateTime:
+                // StartDate = p.StartDate.ToDateTime(TimeOnly.MinValue)
             });
         }
 
@@ -76,23 +82,32 @@ namespace EmreGaleriApp.Web.Api
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // UserId geçerli mi kontrol et
             var userExists = await _userManager.FindByIdAsync(model.UserId);
             if (userExists == null)
                 return BadRequest("Verilen kullanıcı bulunamadı.");
+
+            // ✅ DateTime -> DateOnly
+            var startDateOnly = DateOnly.FromDateTime(model.StartDate);
 
             var newPersonel = new PersonelDetail
             {
                 UserId = model.UserId,
                 Position = model.Position,
                 Salary = model.Salary,
-                StartDate = model.StartDate
+                StartDate = startDateOnly
             };
 
             _context.PersonelDetails.Add(newPersonel);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = newPersonel.Id }, newPersonel);
+            return CreatedAtAction(nameof(GetById), new { id = newPersonel.Id }, new
+            {
+                newPersonel.Id,
+                newPersonel.UserId,
+                newPersonel.Position,
+                newPersonel.Salary,
+                StartDate = newPersonel.StartDate.ToString("yyyy-MM-dd")
+            });
         }
 
         // PUT: api/personelapi/{id}
@@ -116,11 +131,20 @@ namespace EmreGaleriApp.Web.Api
             existing.UserId = model.UserId;
             existing.Position = model.Position;
             existing.Salary = model.Salary;
-            existing.StartDate = model.StartDate;
+
+            // ✅ DateTime -> DateOnly
+            existing.StartDate = DateOnly.FromDateTime(model.StartDate);
 
             await _context.SaveChangesAsync();
 
-            return Ok(existing);
+            return Ok(new
+            {
+                existing.Id,
+                existing.UserId,
+                existing.Position,
+                existing.Salary,
+                StartDate = existing.StartDate.ToString("yyyy-MM-dd")
+            });
         }
 
         // DELETE: api/personelapi/{id}
@@ -135,11 +159,14 @@ namespace EmreGaleriApp.Web.Api
             return NoContent();
         }
 
-        // POST: api/personelapi/{id}/pay
+        // POST: api/personelapi/{id}/pay?monthCount=1
         [HttpPost("{id}/pay")]
         public async Task<IActionResult> PaySalary(int id, [FromQuery] int monthCount = 1)
         {
-            var personel = await _context.PersonelDetails.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == id);
+            var personel = await _context.PersonelDetails
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (personel == null)
                 return NotFound();
 
@@ -160,7 +187,10 @@ namespace EmreGaleriApp.Web.Api
                 Amount = -totalSalary,
                 Description = $"{currentMonthName} ayı Maaş Ödemesi - {personel.Position} - {userName}",
                 Type = "Gider",
-                CreatedByUserId = adminId
+                CreatedByUserId = adminId,
+
+                // ✅ KRİTİK SATIR
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.CashRegisters.Add(cashEntry);
@@ -175,14 +205,14 @@ namespace EmreGaleriApp.Web.Api
         }
     }
 
-    // DTO Sınıfları
+    // DTO
     public class PersonelCreateDto
     {
         public string UserId { get; set; } = null!;
         public string Position { get; set; } = null!;
         public decimal Salary { get; set; }
+
+        // ✅ Client DateTime gönderir, biz DateOnly'e çeviririz
         public DateTime StartDate { get; set; }
     }
-
-
 }

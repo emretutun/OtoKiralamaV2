@@ -107,7 +107,10 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
                 Email = user.Email,
                 Phone = user.PhoneNumber,
                 NationalId = user.NationalId,
-                BirthDate = user.BirthDate,
+                BirthDate = user.BirthDate.HasValue
+    ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+    : null,
+
                 Gender = user.Gender,
                 DrivingExperienceYears = user.DrivingExperienceYears,
                 Picture = user.PictureUrl,
@@ -151,7 +154,10 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
                 Email = user.Email,
                 Phone = user.PhoneNumber,
                 NationalId = user.NationalId,
-                BirthDate = user.BirthDate,
+                BirthDate = user.BirthDate.HasValue
+    ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+    : null,
+
                 Gender = user.Gender,
                 DrivingExperienceYears = user.DrivingExperienceYears,
                 LicenseTypes = licenseTypeCheckboxItems
@@ -179,7 +185,9 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             user.Email = model.Email;
             user.PhoneNumber = model.Phone;
             user.NationalId = model.NationalId;
-            user.BirthDate = model.BirthDate;
+            user.BirthDate = model.BirthDate.HasValue
+    ? DateOnly.FromDateTime(model.BirthDate.Value)
+    : null;
             user.Gender = model.Gender;
             user.DrivingExperienceYears = model.DrivingExperienceYears;
 

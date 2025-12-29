@@ -26,16 +26,18 @@ namespace EmreGaleriApp.Web.Api
             _logger = logger;
         }
 
-
-
         [HttpPost("create-order")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
         {
             _logger.LogInformation("Sipariş oluşturma isteği alındı: {@Request}", request);
 
-            if (request.StartDate >= request.EndDate)
+            // DTO DateTime ise burada DateOnly'e çeviriyoruz (sadece tarih kısmı)
+            var startDate = DateOnly.FromDateTime(request.StartDate);
+            var endDate = DateOnly.FromDateTime(request.EndDate);
+
+            if (startDate >= endDate)
             {
-                _logger.LogWarning("Tarih aralığı geçersiz: Start={Start}, End={End}", request.StartDate, request.EndDate);
+                _logger.LogWarning("Tarih aralığı geçersiz: Start={Start}, End={End}", startDate, endDate);
                 return BadRequest("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
             }
 
@@ -75,12 +77,16 @@ namespace EmreGaleriApp.Web.Api
 
                 if (!hasLicense)
                 {
-                    _logger.LogWarning("Ehliyet uyuşmazlığı: Kullanıcı '{UserId}' => Gerekli: {@Required} - Sahip: {@Owned}", userId, requiredLicenseIds, userLicenseIds);
+                    _logger.LogWarning(
+                        "Ehliyet uyuşmazlığı: Kullanıcı '{UserId}' => Gerekli: {@Required} - Sahip: {@Owned}",
+                        userId, requiredLicenseIds, userLicenseIds
+                    );
+
                     return BadRequest($"'{car.Brand} {car.Model}' aracını kiralamak için geçerli ehliyetiniz yok.");
                 }
             }
 
-            int days = (request.EndDate - request.StartDate).Days;
+            int days = (endDate.ToDateTime(TimeOnly.MinValue) - startDate.ToDateTime(TimeOnly.MinValue)).Days;
             if (days <= 0)
             {
                 _logger.LogWarning("Geçersiz gün sayısı: {Days}", days);
@@ -92,8 +98,8 @@ namespace EmreGaleriApp.Web.Api
             var order = new Order
             {
                 AppUserId = userId,
-                StartDate = request.StartDate,
-                EndDate = request.EndDate,
+                StartDate = startDate, // DateOnly
+                EndDate = endDate,     // DateOnly
                 TotalPrice = totalPrice,
                 Status = "Beklemede",
                 OrderItems = request.CartItems.Select(c => new OrderItem

@@ -1,4 +1,4 @@
-using EmreGaleriApp.Core.OptionsModel;
+ï»¿using EmreGaleriApp.Core.OptionsModel;
 using EmreGaleriApp.Repository.Models;
 using EmreGaleriApp.Service.Services;
 using EmreGaleriApp.Web.Extensions;
@@ -67,14 +67,13 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlCon"), opt =>
-    {
-        opt.MigrationsAssembly("EmreGaleriApp.Repository");
-    });
-});
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        b => b.MigrationsAssembly("EmreGaleriApp.Repository")
+    ));
 
-// Burada kendi AppUser ve AppRole kullanýlýyor
+
+// Burada kendi AppUser ve AppRole kullanÄ±lÄ±yor
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
 {
     options.Password.RequireDigit = false;
@@ -120,7 +119,7 @@ builder.Services.AddSignalR();
 var app = builder.Build();
 
 var loggerApp = app.Services.GetRequiredService<ILogger<Program>>();
-loggerApp.LogInformation("EmreGaleriApp baþladý.");
+loggerApp.LogInformation("EmreGaleriApp baÅŸladÄ±.");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -149,5 +148,6 @@ app.MapControllerRoute(
 app.MapHub<EmreGaleriApp.Web.Hubs.RentalHub>("/rentalhub");
 
 app.MapControllers();
+
 
 app.Run();

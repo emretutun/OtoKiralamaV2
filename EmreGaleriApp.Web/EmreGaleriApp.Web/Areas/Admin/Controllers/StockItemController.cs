@@ -1,14 +1,14 @@
 ﻿using EmreGaleriApp.Repository;
 using EmreGaleriApp.Repository.Models;
+using EmreGaleriApp.Service.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Linq;
-using System.Threading.Tasks;
-using EmreGaleriApp.Service.Services;
-using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 {
@@ -28,7 +28,10 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         // Listeleme
         public async Task<IActionResult> Index()
         {
-            var stockItems = await _context.StockItems.Include(s => s.Firm).ToListAsync();
+            var stockItems = await _context.StockItems
+                .Include(s => s.Firm)
+                .ToListAsync();
+
             return View(stockItems);
         }
 
@@ -45,6 +48,7 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         }
 
         // Create GET
+        [HttpGet]
         public IActionResult Create()
         {
             ViewData["FirmId"] = new SelectList(_context.Firms, "Id", "Name");
@@ -56,18 +60,39 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(StockItem stockItem)
         {
-            if (ModelState.IsValid)
+            // 1) ModelState hatalarını DIREKT göster (debug)
+            if (!ModelState.IsValid)
             {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .Select(x => new
+                    {
+                        Field = x.Key,
+                        Errors = x.Value.Errors.Select(e => e.ErrorMessage).ToList()
+                    })
+                    .ToList();
+
+                return BadRequest(new
+                {
+                    Message = "ModelState geçersiz. Zorunlu alanlar veya format hatası var.",
+                    Errors = errors
+                });
+            }
+
+            // 2) Kaydetme ve kasa işlemini tek yerde yakala (debug)
+            try
+            {
+                // Stock kaydı
                 _context.StockItems.Add(stockItem);
                 await _context.SaveChangesAsync();
 
-                // Kasa hareketi oluştur (adet ile fiyat çarpımı eklendi)
+                // Kasa hareketi
                 var transaction = new CashRegister
                 {
-                    Amount = -stockItem.PurchasePrice * stockItem.Quantity,
+                    Amount = -(stockItem.PurchasePrice * stockItem.Quantity),
                     Type = "Gider",
                     Description = $"Stok alımı - Ürün: {stockItem.ProductName}, Adet: {stockItem.Quantity}",
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = DateTime.UtcNow,
                     CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
                     RelatedEntityType = "Stock",
                     RelatedEntityId = stockItem.Id
@@ -77,11 +102,21 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["FirmId"] = new SelectList(_context.Firms, "Id", "Name", stockItem.FirmId);
-            return View(stockItem);
+            catch (Exception ex)
+            {
+                // Gerçek hatayı NET gör
+                return BadRequest(new
+                {
+                    Message = "Create sırasında exception oluştu.",
+                    Exception = ex.Message,
+                    Inner = ex.InnerException?.Message,
+                    StackTrace = ex.StackTrace
+                });
+            }
         }
 
         // Edit GET
+        [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
             var stockItem = await _context.StockItems.FindAsync(id);
@@ -98,20 +133,38 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         {
             if (id != stockItem.Id) return BadRequest();
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+            {
+                ViewData["FirmId"] = new SelectList(_context.Firms, "Id", "Name", stockItem.FirmId);
+                return View(stockItem);
+            }
+
+            try
             {
                 _context.Update(stockItem);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["FirmId"] = new SelectList(_context.Firms, "Id", "Name", stockItem.FirmId);
-            return View(stockItem);
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = "Edit sırasında exception oluştu.",
+                    Exception = ex.Message,
+                    Inner = ex.InnerException?.Message,
+                    StackTrace = ex.StackTrace
+                });
+            }
         }
 
         // Delete GET
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            var stockItem = await _context.StockItems.Include(s => s.Firm).FirstOrDefaultAsync(s => s.Id == id);
+            var stockItem = await _context.StockItems
+                .Include(s => s.Firm)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (stockItem == null) return NotFound();
 
             return View(stockItem);
@@ -122,13 +175,27 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var stockItem = await _context.StockItems.FindAsync(id);
-            if (stockItem != null)
+            try
             {
-                _context.StockItems.Remove(stockItem);
-                await _context.SaveChangesAsync();
+                var stockItem = await _context.StockItems.FindAsync(id);
+                if (stockItem != null)
+                {
+                    _context.StockItems.Remove(stockItem);
+                    await _context.SaveChangesAsync();
+                }
+
+                return RedirectToAction(nameof(Index));
             }
-            return RedirectToAction(nameof(Index));
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = "Delete sırasında exception oluştu.",
+                    Exception = ex.Message,
+                    Inner = ex.InnerException?.Message,
+                    StackTrace = ex.StackTrace
+                });
+            }
         }
     }
 }

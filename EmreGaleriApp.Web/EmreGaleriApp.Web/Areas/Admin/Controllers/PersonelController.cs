@@ -210,14 +210,17 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             // Şu anki giriş yapmış kullanıcının Id'sini al
             var currentUserId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-            var currentMonthName = DateTime.Now.ToString("MMMM", new System.Globalization.CultureInfo("tr-TR"));
+            var currentMonthName = DateTime.UtcNow.ToString("MMMM", new System.Globalization.CultureInfo("tr-TR"));
 
             var cashEntry = new CashRegister
             {
                 Amount = -totalSalary,
                 Description = $"{currentMonthName} ayı Maaş Ödemesi - {personel.Position} - {userName}",
                 Type = "Gider",
-                CreatedByUserId = _userManager.GetUserId(User!)
+                CreatedByUserId = _userManager.GetUserId(User!),
+
+                // ✅ PostgreSQL timestamptz için şart: UTC
+                CreatedAt = DateTime.UtcNow
             };
 
 

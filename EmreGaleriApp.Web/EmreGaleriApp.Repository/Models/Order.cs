@@ -10,8 +10,8 @@ namespace EmreGaleriApp.Repository.Models
         public string AppUserId { get; set; } = null!;
         public AppUser AppUser { get; set; } = null!;
 
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
+        public DateOnly StartDate { get; set; }
+        public DateOnly EndDate { get; set; }
         public decimal TotalPrice { get; set; }
         public string Status { get; set; } = "Beklemede";
 

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore; // ToListAsync için gerekli
 
 namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 {
-    [Authorize(Roles = "Yonetici")]
+    //[Authorize(Roles = "Yonetici")]
     [Area("Admin")]
     public class RoleController : Controller
     {

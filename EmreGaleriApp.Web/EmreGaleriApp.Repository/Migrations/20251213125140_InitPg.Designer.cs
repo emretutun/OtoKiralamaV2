@@ -3,6 +3,7 @@ using System;
 using EmreGaleriApp.Repository.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EmreGaleriApp.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251213125140_InitPg")]
+    partial class InitPg
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,8 +59,8 @@ namespace EmreGaleriApp.Repository.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly?>("BirthDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -193,83 +196,6 @@ namespace EmreGaleriApp.Repository.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Cars");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Brand = "Audi",
-                            Color = "Siyah",
-                            DailyPrice = 2500m,
-                            Description = "Audi A4 Siyah, konforlu ve şık sedan",
-                            FuelType = "Dizel",
-                            GearType = 1,
-                            ImageUrl = "/images/audia4siyah.jpg",
-                            IsAvailable = true,
-                            Mileage = 85000,
-                            Model = "A4",
-                            ModelYear = 2020
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Brand = "BMW",
-                            Color = "Gri",
-                            DailyPrice = 2700m,
-                            Description = "BMW 320i Gri, sportif sürüş deneyimi",
-                            FuelType = "Benzin",
-                            GearType = 1,
-                            ImageUrl = "/images/bmw320igri.jpg",
-                            IsAvailable = true,
-                            Mileage = 72000,
-                            Model = "320i",
-                            ModelYear = 2019
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Brand = "Fiat",
-                            Color = "Gri",
-                            DailyPrice = 1500m,
-                            Description = "Fiat Egea Gri, ekonomik ve aile dostu",
-                            FuelType = "Dizel",
-                            GearType = 3,
-                            ImageUrl = "/images/fiategeagri.jpg",
-                            IsAvailable = true,
-                            Mileage = 95000,
-                            Model = "Egea",
-                            ModelYear = 2021
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Brand = "Mercedes",
-                            Color = "Beyaz",
-                            DailyPrice = 3000m,
-                            Description = "Mercedes C180 Beyaz, premium sedan",
-                            FuelType = "Benzin",
-                            GearType = 1,
-                            ImageUrl = "/images/mercedesc180beyaz.jpg",
-                            IsAvailable = true,
-                            Mileage = 68000,
-                            Model = "C180",
-                            ModelYear = 2020
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Brand = "Toyota",
-                            Color = "Beyaz",
-                            DailyPrice = 1800m,
-                            Description = "Toyota Corolla Beyaz, sorunsuz ve dayanıklı",
-                            FuelType = "Benzin",
-                            GearType = 1,
-                            ImageUrl = "/images/toyotacorollabeyaz.jpg",
-                            IsAvailable = true,
-                            Mileage = 88000,
-                            Model = "Corolla",
-                            ModelYear = 2022
-                        });
                 });
 
             modelBuilder.Entity("EmreGaleriApp.Repository.Models.CarLicenseType", b =>
@@ -422,93 +348,6 @@ namespace EmreGaleriApp.Repository.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("LicenseTypes");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "A"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "A1"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "A2"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "M"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "B"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Name = "B1"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Name = "BE"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            Name = "C"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            Name = "C1"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            Name = "CE"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            Name = "C1E"
-                        },
-                        new
-                        {
-                            Id = 12,
-                            Name = "D"
-                        },
-                        new
-                        {
-                            Id = 13,
-                            Name = "D1"
-                        },
-                        new
-                        {
-                            Id = 14,
-                            Name = "DE"
-                        },
-                        new
-                        {
-                            Id = 15,
-                            Name = "D1E"
-                        },
-                        new
-                        {
-                            Id = 16,
-                            Name = "G"
-                        },
-                        new
-                        {
-                            Id = 17,
-                            Name = "F"
-                        });
                 });
 
             modelBuilder.Entity("EmreGaleriApp.Repository.Models.Order", b =>
@@ -526,11 +365,11 @@ namespace EmreGaleriApp.Repository.Migrations
                     b.Property<int>("DeliveryStatus")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -588,8 +427,8 @@ namespace EmreGaleriApp.Repository.Migrations
                     b.Property<decimal>("Salary")
                         .HasColumnType("numeric");
 
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UserId")
                         .IsRequired()

@@ -20,33 +20,31 @@ public class CarAvailabilityBackgroundService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            using (var scope = _scopeFactory.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                // Bitiş tarihi geçmiş ve durum onaylı olan siparişlerdeki araçları serbest bırak
-                var ordersToRelease = await context.Orders
-                    .Include(o => o.OrderItems)
+            // ✅ DateOnly ile çalış (sipariş tarihlerin DateOnly ise)
+            var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            // ✅ Bitiş tarihi geçmiş ve durum onaylı olan siparişlerdeki araçları serbest bırak
+            var ordersToRelease = await context.Orders
+                .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Car)
-                    .Where(o => o.Status == "Onaylandı" && o.EndDate < DateTime.Now)
-                    .ToListAsync();
+                .Where(o => o.Status == "Onaylandı" && o.EndDate < todayUtc)
+                .ToListAsync(stoppingToken);
 
-                foreach (var order in ordersToRelease)
+            foreach (var order in ordersToRelease)
+            {
+                foreach (var item in order.OrderItems)
                 {
-                    foreach (var item in order.OrderItems)
-                    {
-                        if (!item.Car.IsAvailable)
-                        {
-                            item.Car.IsAvailable = true;
-                        }
-                    }
-                    order.Status = "Tamamlandı"; // istersen durumu güncelle
+                    item.Car.IsAvailable = true;
                 }
 
-                await context.SaveChangesAsync();
+                order.Status = "Tamamlandı";
             }
 
-            // 1 saatte bir kontrol et (isteğe göre süreyi değiştir)
+            await context.SaveChangesAsync(stoppingToken);
+
             await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
         }
     }

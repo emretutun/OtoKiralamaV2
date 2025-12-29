@@ -24,7 +24,7 @@ namespace EmreGaleriApp.Repository.Models
         public decimal Salary { get; set; }
 
         [Required]
-        public DateTime StartDate { get; set; }
+        public DateOnly StartDate { get; set; }
 
         [ValidateNever]
         public AppUser? User { get; set; }

@@ -54,7 +54,9 @@ namespace EmreGaleriApp.Web.Api
                 Email = user.Email!,
                 NationalId = user.NationalId,
                 Gender = user.Gender,
-                BirthDate = user.BirthDate,
+                BirthDate = user.BirthDate.HasValue
+    ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+    : null,
                 DrivingExperienceYears = user.DrivingExperienceYears,
                 PictureUrl = user.PictureUrl,
                 LicenseTypes = user.AppUserLicenses
@@ -90,7 +92,9 @@ namespace EmreGaleriApp.Web.Api
 
             user.NationalId = updateDto.NationalId;
             user.Gender = updateDto.Gender;
-            user.BirthDate = updateDto.BirthDate;
+            user.BirthDate = updateDto.BirthDate.HasValue
+    ? DateOnly.FromDateTime(updateDto.BirthDate.Value)
+    : null;
             user.DrivingExperienceYears = updateDto.DrivingExperienceYears;
 
             if (!string.IsNullOrEmpty(updateDto.PictureUrl))
@@ -154,7 +158,10 @@ namespace EmreGaleriApp.Web.Api
                 Email = user.Email!,
                 NationalId = user.NationalId,
                 Gender = user.Gender,
-                BirthDate = user.BirthDate,
+                BirthDate = user.BirthDate.HasValue
+    ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+    : null,
+
                 DrivingExperienceYears = user.DrivingExperienceYears,
                 PictureUrl = user.PictureUrl,
                 LicenseTypes = user.AppUserLicenses

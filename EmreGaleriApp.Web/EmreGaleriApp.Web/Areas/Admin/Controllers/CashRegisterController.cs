@@ -46,7 +46,7 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             }
 
             model.CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            model.CreatedAt = DateTime.Now;
+            model.CreatedAt = DateTime.UtcNow;
 
             await _cashService.AddTransactionAsync(model);
 

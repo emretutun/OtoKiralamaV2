@@ -7,7 +7,7 @@ namespace EmreGaleriApp.Repository.Models
 
         public string? NationalId { get; set; }            // TC Kimlik No yerine 
         public string? Gender { get; set; }                 // Cinsiyet
-        public DateTime? BirthDate { get; set; }            // Doğum Tarihi
+        public DateOnly? BirthDate { get; set; }        // Doğum Tarihi
         public int? DrivingExperienceYears { get; set; }    // Sürüş deneyimi (yıl)
         public string? PictureUrl { get; set; }
 

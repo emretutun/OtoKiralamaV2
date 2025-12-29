@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System;
 
 namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 {
@@ -18,7 +19,11 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
         private readonly IInvoiceService _invoiceService;
         private readonly ICashRegisterService _cashRegisterService;
 
-        public OrderController(AppDbContext context, IEmailService emailService, IInvoiceService invoiceService, ICashRegisterService cashRegisterService)
+        public OrderController(
+            AppDbContext context,
+            IEmailService emailService,
+            IInvoiceService invoiceService,
+            ICashRegisterService cashRegisterService)
         {
             _context = context;
             _emailService = emailService;
@@ -26,48 +31,47 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             _cashRegisterService = cashRegisterService;
         }
 
-        // Siparişleri listele
+        // 🔸 Siparişleri listele
         public async Task<IActionResult> Index()
         {
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Car)
                 .Include(o => o.AppUser)
-                .OrderByDescending(o => o.StartDate)
+                .OrderByDescending(o => o.StartDate) // DateOnly ile sorunsuz
                 .ToListAsync();
 
             return View(orders);
         }
 
-        // Siparişi onayla
+        // 🔸 Siparişi onayla
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Approve(int id)
         {
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Car)
+                    .ThenInclude(oi => oi.Car)
                 .Include(o => o.AppUser)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound();
+            if (order == null)
+                return NotFound();
 
             order.Status = "Onaylandı";
 
             foreach (var item in order.OrderItems)
-            {
                 item.Car.IsAvailable = false;
-            }
 
             await _context.SaveChangesAsync();
 
-            // Kasa hareketi oluştur
+            // ✅ Kasa hareketi → UTC
             var transaction = new CashRegister
             {
-                Amount = order.TotalPrice, // Sipariş toplam tutarı (decimal)
+                Amount = order.TotalPrice,
                 Type = "Gelir",
                 Description = $"Araç kiralama - Sipariş No: {order.Id}",
-                CreatedAt = DateTime.Now,
+                CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
                 RelatedEntityType = "Order",
                 RelatedEntityId = order.Id
@@ -75,16 +79,21 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 
             await _cashRegisterService.AddTransactionAsync(transaction);
 
-            // Fatura ve mail işlemleri
+            // Fatura ve mail
             var invoicePdf = _invoiceService.GenerateInvoicePdf(order);
-            await _emailService.SendOrderApprovedEmail(order.AppUser.Email!, order.AppUser.UserName!, invoicePdf);
+            await _emailService.SendOrderApprovedEmail(
+                order.AppUser.Email!,
+                order.AppUser.UserName!,
+                invoicePdf
+            );
 
-            TempData["SuccessMessage"] = "Sipariş onaylandı, kasa hareketi kaydedildi ve kullanıcıya mail gönderildi.";
+            TempData["SuccessMessage"] =
+                "Sipariş onaylandı, kasa hareketi kaydedildi ve kullanıcıya mail gönderildi.";
 
             return RedirectToAction(nameof(Index));
         }
 
-        // Siparişi reddet
+        // 🔸 Siparişi reddet
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Reject(int id)
@@ -93,20 +102,24 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
                 .Include(o => o.AppUser)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound();
+            if (order == null)
+                return NotFound();
 
             order.Status = "Reddedildi";
-
             await _context.SaveChangesAsync();
 
-            // Mail gönderiyoruz, reddedildi bilgisini iletiyoruz
-            await _emailService.SendOrderRejectedEmail(order.AppUser.Email!, order.AppUser.UserName!);
+            await _emailService.SendOrderRejectedEmail(
+                order.AppUser.Email!,
+                order.AppUser.UserName!
+            );
 
-            TempData["SuccessMessage"] = "Sipariş reddedildi ve kullanıcıya mail gönderildi.";
+            TempData["SuccessMessage"] =
+                "Sipariş reddedildi ve kullanıcıya mail gönderildi.";
 
             return RedirectToAction(nameof(Index));
         }
 
+        // 🔸 Teslim durumu ayarla
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetDeliveryStatus(int id, string status)
@@ -120,54 +133,55 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             if (order == null)
                 return NotFound();
 
-            if (!Enum.TryParse<DeliveryStatus>(status, out var deliveryStatus))
+            if (!Enum.TryParse(status, out DeliveryStatus deliveryStatus))
             {
                 ModelState.AddModelError("", "Geçersiz teslim durumu.");
-                return RedirectToAction("Index");
+                return RedirectToAction(nameof(Index));
             }
 
             order.DeliveryStatus = deliveryStatus;
             await _context.SaveChangesAsync();
 
-            // Eğer teslim edilmedi ise mail gönder
+            // 🔥 Teslim edilmediyse ceza hesapla
             if (deliveryStatus == DeliveryStatus.NotDelivered)
             {
-                int lateDays = (DateTime.Now.Date - order.EndDate.Date).Days;
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                int lateDays = today.DayNumber - order.EndDate.DayNumber;
                 if (lateDays < 0) lateDays = 0;
 
                 decimal penaltyPerDay = 0;
                 foreach (var item in order.OrderItems)
                 {
                     penaltyPerDay = item.Car.DailyPrice * 2;
-                    break; // İstersen tüm araçlar için toplam da yapabilirsin
+                    break;
                 }
 
                 decimal totalPenalty = penaltyPerDay * lateDays;
 
                 string mailBody = $@"
-        Sayın {order.AppUser.UserName},
+Sayın {order.AppUser.UserName},
 
-        Kiralama süreniz {order.EndDate:dd.MM.yyyy} tarihinde sona ermiştir ancak aracı teslim etmediğiniz görünmektedir.
+Kiralama süreniz {order.EndDate.ToString("dd.MM.yyyy")} tarihinde sona ermiştir
+ancak aracı teslim etmediğiniz görülmektedir.
 
-        Geciken Gün Sayısı: {lateDays}
-        Günlük Ceza: {penaltyPerDay}₺
-        Toplam Ceza: {totalPenalty}₺
+Geciken Gün Sayısı: {lateDays}
+Günlük Ceza: {penaltyPerDay}₺
+Toplam Ceza: {totalPenalty}₺
 
-        Lütfen en kısa sürede bizimle iletişime geçiniz.
+Lütfen en kısa sürede bizimle iletişime geçiniz.
 
-        İyi günler dileriz.
-        Emre Galeri";
+İyi günler dileriz.
+Emre Galeri";
 
-                await _emailService.SendEmailAsync(order.AppUser.Email!, "Araç Teslim Uyarısı", mailBody);
+                await _emailService.SendEmailAsync(
+                    order.AppUser.Email!,
+                    "Araç Teslim Uyarısı",
+                    mailBody
+                );
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction(nameof(Index));
         }
-
-
-
-
-
-
     }
 }

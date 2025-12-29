@@ -96,15 +96,17 @@ namespace EmreGaleriApp.Web.Api
                 }
             }
 
-            // 🔥 Türkiye saatine göre kasaya kayıt
-            var turkiyeZamani = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time"));
+            // Türkiye saati
+            var turkiyeZamani = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")
+            );
 
             var kasaHareket = new CashRegister
             {
                 Amount = order.TotalPrice,
                 Description = $"Araç kiralama geliri - Sipariş #{order.Id} | Onaylayan: {adminUserName}",
-                CreatedAt = turkiyeZamani,
+                CreatedAt = DateTime.UtcNow, // ✅ SADECE UTC
                 Type = "Gelir",
                 CreatedByUserId = adminId,
                 RelatedEntityType = "Order",
@@ -121,7 +123,7 @@ namespace EmreGaleriApp.Web.Api
             }
             catch (Exception)
             {
-                // Loglama yapılabilir
+                // loglayabilirsin
             }
 
             return Ok();
@@ -142,6 +144,7 @@ namespace EmreGaleriApp.Web.Api
 
             var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier)
               ?? User.FindFirstValue("sub");
+
             if (adminId == null)
                 return Unauthorized();
 
@@ -155,7 +158,7 @@ namespace EmreGaleriApp.Web.Api
             }
             catch (Exception)
             {
-                // Loglama yapılabilir
+                // loglayabilirsin
             }
 
             return Ok();
@@ -187,7 +190,11 @@ namespace EmreGaleriApp.Web.Api
 
             if (deliveryStatus == DeliveryStatus.NotDelivered)
             {
-                int lateDays = (DateTime.Now.Date - order.EndDate.Date).Days;
+                // ✅ DateOnly -> DateTime dönüşümü (00:00)
+                DateTime endDateTime = order.EndDate.ToDateTime(TimeOnly.MinValue);
+                DateTime today = DateTime.Today;
+
+                int lateDays = (today - endDateTime.Date).Days;
                 if (lateDays < 0) lateDays = 0;
 
                 decimal penaltyPerDay = 0;

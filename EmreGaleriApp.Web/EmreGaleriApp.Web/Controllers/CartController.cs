@@ -38,9 +38,7 @@ namespace EmreGaleriApp.Web.Controllers
                 .FirstOrDefault(c => c.Id == id && c.IsAvailable);
 
             if (car == null)
-            {
                 return Json(new { success = false, message = "Araç bulunamadı veya müsait değil." });
-            }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -54,9 +52,7 @@ namespace EmreGaleriApp.Web.Controllers
             bool hasRequiredLicense = carLicenseIds.Count == 0 || carLicenseIds.Intersect(userLicenseIds).Any();
 
             if (!hasRequiredLicense)
-            {
                 return Json(new { success = false, message = "Bu aracı kiralayacak ehliyet sınıfına sahip değilsiniz." });
-            }
 
             var cart = GetCartFromSession();
 
@@ -97,7 +93,11 @@ namespace EmreGaleriApp.Web.Controllers
         {
             var cart = GetCartFromSession();
 
-            if (StartDate >= EndDate)
+            // ✅ DateOnly’ye çevir: “gün kayması” biter
+            var start = DateOnly.FromDateTime(StartDate);
+            var end = DateOnly.FromDateTime(EndDate);
+
+            if (start >= end)
             {
                 ModelState.AddModelError("", "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
                 return View("Index", cart);
@@ -110,6 +110,7 @@ namespace EmreGaleriApp.Web.Controllers
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var userLicenseIds = _context.AppUserLicenses
                 .Where(ul => ul.AppUserId == userId)
                 .Select(ul => ul.LicenseTypeId)
@@ -133,7 +134,7 @@ namespace EmreGaleriApp.Web.Controllers
                 }
             }
 
-            int days = (EndDate - StartDate).Days;
+            int days = end.DayNumber - start.DayNumber; // ✅ DateOnly farkı
             if (days <= 0)
             {
                 ModelState.AddModelError("", "Geçerli bir tarih aralığı giriniz.");
@@ -144,9 +145,9 @@ namespace EmreGaleriApp.Web.Controllers
 
             var order = new Order
             {
-                AppUserId = userId,
-                StartDate = StartDate,
-                EndDate = EndDate,
+                AppUserId = userId!,
+                StartDate = start,
+                EndDate = end,
                 TotalPrice = totalPrice,
                 Status = "Beklemede",
                 OrderItems = cart.Select(c => new OrderItem
@@ -160,7 +161,6 @@ namespace EmreGaleriApp.Web.Controllers
             await _context.SaveChangesAsync();
 
             SaveCartToSession(new List<CartItem>()); // sepet temizleniyor
-
             return RedirectToAction("MyOrders", "Order");
         }
 

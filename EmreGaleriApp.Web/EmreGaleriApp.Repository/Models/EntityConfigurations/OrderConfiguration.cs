@@ -11,7 +11,7 @@ namespace EmreGaleriApp.Repository.Configurations
             builder.HasKey(o => o.Id);
 
             builder.Property(o => o.TotalPrice)
-                   .HasColumnType("decimal(18,2)")
+                   .HasColumnType("numeric(18,2)")
                    .IsRequired();
 
             builder.Property(o => o.Status)

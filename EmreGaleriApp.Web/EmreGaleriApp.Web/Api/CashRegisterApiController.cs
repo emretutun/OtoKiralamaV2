@@ -102,7 +102,7 @@ namespace EmreGaleriApp.Web.Controllers.Api
                 model.Amount *= -1;
 
             model.CreatedByUserId = adminId;
-            model.CreatedAt = DateTime.Now;
+            model.CreatedAt = DateTime.UtcNow;
 
             await _cashService.AddTransactionAsync(model);
 

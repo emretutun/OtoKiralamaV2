@@ -65,7 +65,7 @@ namespace EmreGaleriApp.Web.Api
             {
                 Title = model.Title,
                 Description = model.Description,
-                ReminderDate = model.ReminderDate,
+                ReminderDate = model.ReminderDate.ToUniversalTime(),
                 IsCompleted = model.IsCompleted,
                 AppUserId = userId
             };

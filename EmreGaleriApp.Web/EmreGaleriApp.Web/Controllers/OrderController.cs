@@ -10,24 +10,27 @@ using System.Linq;
 using EmreGaleriApp.Core.ViewModels;
 using EmreGaleriApp.Service.Services;
 using EmreGaleriApp.Core.Enums;
+using System;
 
 namespace EmreGaleriApp.Web.Controllers
 {
-    [Authorize] // Sadece giriş yapanlar erişebilir
+    [Authorize]
     public class OrderController : Controller
     {
         private readonly AppDbContext _context;
         private readonly IHubContext<RentalHub> _rentalHub;
         private readonly ICarReviewService _reviewService;
 
-        public OrderController(AppDbContext context, IHubContext<RentalHub> rentalHub, ICarReviewService reviewService)
+        public OrderController(
+            AppDbContext context,
+            IHubContext<RentalHub> rentalHub,
+            ICarReviewService reviewService)
         {
             _context = context;
             _rentalHub = rentalHub;
             _reviewService = reviewService;
         }
 
-        // Kullanıcının siparişleri sayfası
         public async Task<IActionResult> MyOrders()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -41,7 +44,6 @@ namespace EmreGaleriApp.Web.Controllers
                 .OrderByDescending(o => o.StartDate)
                 .ToListAsync();
 
-            // Kullanıcının yorum yaptığı siparişlerin Id’lerini al
             var reviewedOrderIds = await _context.CarReviews
                 .Where(r => r.UserId == userId)
                 .Select(r => r.OrderId)
@@ -53,8 +55,6 @@ namespace EmreGaleriApp.Web.Controllers
             return View(orders);
         }
 
-
-        // Sipariş iptal etme (POST)
         [HttpPost]
         public async Task<IActionResult> CancelOrder(int orderId)
         {
@@ -68,7 +68,6 @@ namespace EmreGaleriApp.Web.Controllers
             order.Status = "Reddedildi";
             await _context.SaveChangesAsync();
 
-            // Kilitleri kaldır
             foreach (var item in order.OrderItems)
             {
                 await _rentalHub.Clients.All.SendAsync("CarUnlocked", item.CarId);
@@ -85,20 +84,24 @@ namespace EmreGaleriApp.Web.Controllers
                 .Include(o => o.OrderItems)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
 
-            if (order == null || order.DeliveryStatus != DeliveryStatus.Delivered)
+            if (order == null)
+                return NotFound();
+
+            if (order.DeliveryStatus != DeliveryStatus.Delivered)
                 return NotFound();
 
             if (!order.OrderItems.Any(oi => oi.CarId == carId))
                 return BadRequest();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Challenge();
 
             var alreadyReviewed = await _reviewService.HasUserReviewedOrderAsync(userId, orderId, carId);
             if (alreadyReviewed)
             {
-                // Yorum yapılmışsa tekrar yorum ekranı açılmasın
                 TempData["ReviewError"] = "Bu sipariş hakkında zaten yorum yaptınız.";
-                return RedirectToAction("MyOrders");
+                return RedirectToAction(nameof(MyOrders));
             }
 
             var vm = new CarReviewViewModel
@@ -110,15 +113,18 @@ namespace EmreGaleriApp.Web.Controllers
             return View(vm);
         }
 
-
         [HttpPost]
         [Authorize(Roles = "Kullanici,Yonetici,Yetkili")]
-        public async Task<IActionResult> AddReview(CarReviewViewModel model, [FromServices] ICarReviewService reviewService)
+        public async Task<IActionResult> AddReview(
+            CarReviewViewModel model,
+            [FromServices] ICarReviewService reviewService)
         {
             if (!ModelState.IsValid)
                 return View(model);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Challenge();
 
             var alreadyReviewed = await reviewService.HasUserReviewedOrderAsync(userId, model.OrderId, model.CarId);
             if (alreadyReviewed)
@@ -128,24 +134,26 @@ namespace EmreGaleriApp.Web.Controllers
             }
 
             var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == model.OrderId);
-            if (order == null || order.DeliveryStatus != DeliveryStatus.Delivered)
+            if (order == null)
+                return NotFound();
+
+            if (order.DeliveryStatus != DeliveryStatus.Delivered)
                 return NotFound();
 
             var review = new CarReview
             {
-                // Id atama yok!
                 OrderId = model.OrderId,
                 CarId = model.CarId,
                 UserId = userId,
                 Rating = model.Rating,
                 Comment = model.Comment!,
-                CreatedDate = DateTime.Now
+                // ✅ PostgreSQL timestamptz ile en temiz yol: UTC
+                CreatedDate = DateTime.UtcNow
             };
 
             await reviewService.AddReviewAsync(review);
 
-            return RedirectToAction("MyOrders");
+            return RedirectToAction(nameof(MyOrders));
         }
-
     }
 }

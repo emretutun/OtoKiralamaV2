@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmreGaleriApp.Repository.Models
 {
@@ -7,24 +6,20 @@ namespace EmreGaleriApp.Repository.Models
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Ürün adı zorunludur.")]
+        [Required]
         [StringLength(150)]
-        public string ProductName { get; set; } = null!;  // Ürün adı
+        public string ProductName { get; set; } = null!;
 
-        [Range(0, double.MaxValue, ErrorMessage = "Alış fiyatı sıfır veya pozitif olmalı.")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal PurchasePrice { get; set; }  // Alış fiyatı
+        public decimal PurchasePrice { get; set; }
+        public decimal SalePrice { get; set; }
 
-        [Range(0, double.MaxValue, ErrorMessage = "Satış fiyatı sıfır veya pozitif olmalı.")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal SalePrice { get; set; }  // Satış fiyatı
+        public int Quantity { get; set; }
 
-        [Range(0, int.MaxValue, ErrorMessage = "Adet sıfır veya pozitif olmalı.")]
-        public int Quantity { get; set; }  // Stoktaki adet
+        // FK (zorunluluk bununla sağlanır)
+        [Required]
+        public int FirmId { get; set; }
 
-        [Required(ErrorMessage = "Firma seçimi zorunludur.")]
-        public int FirmId { get; set; }  // Firma foreign key
-
-        public Firm? Firm { get; set; }  // Navigation Property
+        // Navigation: Create/Edit formundan gelmez, query'de Include ile dolar
+        public Firm? Firm { get; set; }
     }
 }

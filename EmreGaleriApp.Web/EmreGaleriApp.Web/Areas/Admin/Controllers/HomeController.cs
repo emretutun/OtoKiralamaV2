@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 {
@@ -11,7 +15,6 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
     [Area("Admin")]
     public class HomeController : Controller
     {
-
         private readonly UserManager<AppUser> _userManager;
         private readonly AppDbContext _appDbContext;
 
@@ -31,11 +34,14 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
             var totalCars = await _appDbContext.Cars.CountAsync();
             ViewBag.TotalCars = totalCars;
 
-             ViewBag.RentedCarsCount = _appDbContext.Orders
-           .Where(o => o.Status == "Onaylandı" && o.EndDate >= DateTime.Now)
-           .Select(o => o.Id)
-           .Distinct()
-           .Count();
+            // Order.EndDate artık DateOnly -> DateTime ile kıyaslamak için DateOnly'e çeviriyoruz
+            var today = DateOnly.FromDateTime(DateTime.Now); // istersen UtcNow kullan
+
+            ViewBag.RentedCarsCount = await _appDbContext.Orders
+                .Where(o => o.Status == "Onaylandı" && o.EndDate >= today)
+                .Select(o => o.Id)
+                .Distinct()
+                .CountAsync();
 
             // Kirada olmayan araç sayısı
             ViewBag.AvailableCarsCount = ViewBag.TotalCars - ViewBag.RentedCarsCount;
@@ -63,7 +69,12 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
                     Email = user.Email,
                     Phone = user.PhoneNumber,
                     NationalId = user.NationalId,
-                    BirthDate = user.BirthDate,
+
+                    // BirthDate nullable DateOnly ise doğru çeviri:
+                    BirthDate = user.BirthDate.HasValue
+                        ? user.BirthDate.Value.ToDateTime(TimeOnly.MinValue)
+                        : null,
+
                     Gender = user.Gender,
                     DrivingExperienceYears = user.DrivingExperienceYears,
                     Picture = user.PictureUrl,
@@ -76,6 +87,5 @@ namespace EmreGaleriApp.Web.Areas.Admin.Controllers
 
             return View(userViewModelList);
         }
-
     }
 }

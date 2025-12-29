@@ -27,16 +27,32 @@ namespace EmreGaleriApp.Repository.Models
         {
             base.OnModelCreating(builder);
 
-            
-            builder.ApplyConfiguration(new CarConfiguration()); 
+            builder.Entity<Order>(entity =>
+            {
+                // ✅ Postgres column type = date
+                entity.Property(x => x.StartDate).HasColumnType("date");
+                entity.Property(x => x.EndDate).HasColumnType("date");
+            });
+            builder.Entity<PersonelDetail>(entity =>
+            {
+                entity.Property(x => x.StartDate).HasColumnType("date");
+            });
+
+            builder.ApplyConfiguration(new CarConfiguration());
             builder.ApplyConfiguration(new AppUserLicenseConfiguration());
             builder.ApplyConfiguration(new PersonelDetailConfiguration());
             builder.ApplyConfiguration(new CarLicenseTypeConfiguration());
             builder.ApplyConfiguration(new CarReviewConfiguration());
             builder.ApplyConfiguration(new OrderConfiguration());
             builder.ApplyConfiguration(new OrderItemConfiguration());
+            builder.ApplyConfiguration(new StockItemConfiguration());
+            builder.Entity<AppUser>()
+                .Property(x => x.BirthDate)
+                .HasColumnType("date");
 
             builder.SeedLicenseTypes();
+            builder.SeedCars();
         }
+
     }
 }
